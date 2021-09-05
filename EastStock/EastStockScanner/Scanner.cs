@@ -11,6 +11,9 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using Newtonsoft;
 using Newtonsoft.Json;
+using System.Threading;
+using System.Data;
+using System.Globalization;
 
 namespace EastStockScanner
 {
@@ -21,30 +24,88 @@ namespace EastStockScanner
         private IPlaywright playwright;
         private bool isClosed = false;
         private List<Header> hushenHeaders;
+        private Dictionary<string, string> headDic;
         public Scanner()
         {
             InitializeComponent();
+            Control.CheckForIllegalCrossThreadCalls = false;
             var json = File.ReadAllText(Application.StartupPath + "\\沪深A股标题.json");
             hushenHeaders = JsonConvert.DeserializeObject<List<Header>>(json);
-            Test();
+            headDic = hushenHeaders.Where(o => !string.IsNullOrEmpty(o.key)).ToDictionary(o => o.key, o => o.title);
+            //Test();
         }
         private void Test()
         {
             var text = File.ReadAllText(Application.StartupPath + "\\1test.txt");
             var startIndex = text.IndexOf("({");
-            var data = text.Substring(startIndex + 1, text.Length- startIndex - 3);
+            var data = text.Substring(startIndex + 1, text.Length - startIndex - 3);
             var rootData = JsonConvert.DeserializeObject<RootData>(data);
+
+            for (var i = 1; i <= 1; i++)
+            {
+                var notKeys = new List<string>();
+                var table = new DataTable();
+                for (var j = 0; j < 20; j++)
+                {
+                    var d = rootData.data.diff[j];
+                    var dic = GetProperties(d);
+
+                    if (j == 0)
+                    {
+                        foreach (var key in dic.Keys)
+                        {
+                            if (!headDic.Keys.Contains(key) || string.IsNullOrEmpty(headDic[key]))
+                            {
+                                notKeys.Add(key);
+                                continue;
+                            }
+                            table.Columns.Add(headDic[key]);
+                        }
+                    }
+                    var row = table.NewRow();
+                    foreach (var kv in dic)
+                    {
+                        if (notKeys.Contains(kv.Key)) continue;
+                        row[headDic[kv.Key]] = kv.Value;
+                    }
+                    table.Rows.Add(row);
+                }
+
+                DataGridView dataGrid;
+                var tabPage = GetTabPage(i);
+                if (tabPage.Controls.Count == 0)
+                {
+                    dataGrid = new DataGridView();
+                    dataGrid.RowStateChanged += (s, e) => { e.Row.HeaderCell.Value = string.Format("{0}", e.Row.Index + 1); };
+                    dataGrid.RowHeadersWidthSizeMode = DataGridViewRowHeadersWidthSizeMode.AutoSizeToAllHeaders;
+                    dataGrid.Dock = DockStyle.Fill;
+                    tabPage.Controls.Add(dataGrid);
+                }
+                else
+                {
+                    dataGrid = (DataGridView)tabPage.Controls[0];
+                }
+                dataGrid.DataSource = table;
+            }
         }
         private void btn_Start_Click(object sender, EventArgs e)
         {
             Task.Factory.StartNew(async () =>
             {
+                for (var i = 1; i <= 10; i++)
+                {
+                    var tabPage = GetTabPage(i);
+                    CreateDataGrid(tabPage);
+                }
+
                 var res = await Login();
                 var urlBase = res.FirstUrl.Substring(0, res.FirstUrl.Length - 13).Replace("pn=2", "pn={0}");
-                do
+                //do
+                //{
+                var http = new HttpHelper();
+                for (var i = 1; i <= 10; i++)
                 {
-                    var http = new HttpHelper();
-                    for (var i = 1; i <= 10; i++)
+                    try
                     {
                         var time = ToUnixTimeSpan(DateTime.Now);
                         var url = string.Format(urlBase, i) + time;
@@ -53,13 +114,79 @@ namespace EastStockScanner
                         item.Cookie = res.Cookie.TrimEnd(',');
 
                         var result = await http.GetHtmlAsync(item);
-                        logger.Debug(result.Html);
+                        if (result.StatusCode != System.Net.HttpStatusCode.OK) return;
+                        await Task.Factory.StartNew(() =>
+                        {
+                            try
+                            {
+                                var startIndex = result.Html.IndexOf("({");
+                                var data = result.Html.Substring(startIndex + 1, result.Html.Length - startIndex - 3);
+                                var rootData = JsonConvert.DeserializeObject<RootData>(data);
+                                var notKeys = new List<string>();
+                                var table = new DataTable();
+                                for (var j = 0; j < 20; j++)
+                                {
+                                    var d = rootData.data.diff[j];
+                                    var dic = GetProperties(d);
+
+                                    if (j == 0)
+                                    {
+                                        var headSort = new List<string>() { "代码", "名称", "相关链接", "最新价", "涨跌幅", "涨跌额", "成交量(手)", "成交额", "振幅", "最高", "最低", "今开", "昨收", "量比", "换手率", "市盈率(动态)", "市净率" };
+                                        var headFull = new List<string>();
+                                        foreach (var key in dic.Keys)
+                                        {
+                                            if (!headDic.Keys.Contains(key) || string.IsNullOrEmpty(headDic[key]))
+                                            {
+                                                notKeys.Add(key);
+                                                continue;
+                                            }
+                                            headFull.Add(headDic[key]);
+                                        }
+                                        var ext = headFull.Except(headSort);
+                                        headSort.AddRange(ext);
+                                        headSort.ForEach(k => table.Columns.Add(k));
+                                    }
+                                    var row = table.NewRow();
+                                    foreach (var kv in dic)
+                                    {
+                                        if (notKeys.Contains(kv.Key)) continue;
+                                        row[headDic[kv.Key]] = kv.Value;
+                                    }
+                                    table.Rows.Add(row);
+                                }
+
+                                var tabPage = GetTabPage(i);
+                                DataGridView dataGrid = (DataGridView)tabPage.Controls[0];
+                                dataGrid.DataSource = table;
+                            }
+                            catch (Exception exx)
+                            {
+                                logger.Error("Process Page No = " + i, exx);
+                            }
+                        });
                     }
-                    await Task.Delay(500);
-                } while (!isClosed);
+                    catch (Exception ex)
+                    {
+                        logger.Error("Page No = " + i, ex);
+                    }
+                }
+                //    await Task.Delay(5000 * 12);
+                //} while (!isClosed);
             });
         }
-
+        private DataGridView CreateDataGrid(TabPage tabPage)
+        {
+            if (this.InvokeRequired)
+            {
+                return (DataGridView)this.Invoke(new MethodInvoker(delegate { CreateDataGrid(tabPage); }));
+            }
+            var dataGrid = new DataGridView();
+            dataGrid.RowStateChanged += (s, ee) => { ee.Row.HeaderCell.Value = string.Format("{0}", ee.Row.Index + 1); };
+            dataGrid.RowHeadersWidthSizeMode = DataGridViewRowHeadersWidthSizeMode.AutoSizeToAllHeaders;
+            dataGrid.Dock = DockStyle.Fill;
+            tabPage.Controls.Add(dataGrid);
+            return dataGrid;
+        }
         private async Task<LoginResult> Login()
         {
             try
@@ -102,7 +229,92 @@ namespace EastStockScanner
             isClosed = true;
             playwright?.Dispose();
         }
+        private TabPage GetTabPage(int number)
+        {
+            switch (number)
+            {
+                case 1: return tabPage1;
+                case 2: return tabPage2;
+                case 3: return tabPage3;
+                case 4: return tabPage4;
+                case 5: return tabPage5;
+                case 6: return tabPage6;
+                case 7: return tabPage7;
+                case 8: return tabPage8;
+                case 9: return tabPage9;
+                case 10: return tabPage10;
+                default: return null;
+            }
+        }
+        public static Dictionary<string, string> GetProperties<T>(T t)
+        {
+            Dictionary<string, string> ret = new Dictionary<string, string>();
 
+            if (t == null)
+            {
+                return null;
+            }
+            System.Reflection.PropertyInfo[] properties = t.GetType().GetProperties(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
 
+            if (properties.Length <= 0)
+            {
+                return null;
+            }
+            foreach (System.Reflection.PropertyInfo item in properties)
+            {
+                string name = item.Name;                                         //实体类字段名称
+                var value = item.GetValue(t, null);                //该字段的值
+                var valueStr = value is float ? DoubleToFullString((float)value, NumberFormatInfo.CurrentInfo) : value.ToString();
+
+                if (item.PropertyType.IsValueType || item.PropertyType.Name.StartsWith("String"))
+                {
+                    ret.Add(name, valueStr);                                       //在此可转换value的类型
+                }
+            }
+
+            return ret;
+        }
+        public static string DoubleToFullString(double value, NumberFormatInfo formatInfo)
+        {
+            string[] valueExpSplit;
+            string result, decimalSeparator;
+            int indexOfDecimalSeparator, exp;
+
+            valueExpSplit = value.ToString("r", formatInfo)
+                                 .ToUpper()
+                                 .Split(new char[] { 'E' });
+
+            if (valueExpSplit.Length > 1)
+            {
+                result = valueExpSplit[0];
+                exp = int.Parse(valueExpSplit[1]);
+                decimalSeparator = formatInfo.NumberDecimalSeparator;
+
+                if ((indexOfDecimalSeparator
+                     = valueExpSplit[0].IndexOf(decimalSeparator)) > -1)
+                {
+                    exp -= (result.Length - indexOfDecimalSeparator - 1);
+                    result = result.Replace(decimalSeparator, "");
+                }
+
+                if (exp >= 0) result += new string('0', Math.Abs(exp));
+                else
+                {
+                    exp = Math.Abs(exp);
+                    if (exp >= result.Length)
+                    {
+                        result = "0." + new string('0', exp - result.Length)
+                                     + result;
+                    }
+                    else
+                    {
+                        result = result.Insert(result.Length - exp, decimalSeparator);
+                    }
+                }
+            }
+            else result = valueExpSplit[0];
+
+            return result;
+        }
     }
 }
