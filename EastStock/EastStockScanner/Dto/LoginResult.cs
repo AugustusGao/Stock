@@ -5,7 +5,7 @@ namespace EastStockScanner.Dto
     public class LoginResult
     {
         public string Cookie;
-        public string LocalUrl;
+        public string FirstUrl;
         public IPage Page;
     }
 }

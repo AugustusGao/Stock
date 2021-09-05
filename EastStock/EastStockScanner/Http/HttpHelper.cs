@@ -388,9 +388,9 @@ namespace ML.NetComponent.Http
                 {
                     request.Headers[HttpRequestHeader.Cookie] = item.Cookie.TrimEnd(',');
                 }
-                catch (Exception ex)
+                catch (Exception )
                 {
-
+                    // ignore
                 }
             }
             //设置CookieCollection

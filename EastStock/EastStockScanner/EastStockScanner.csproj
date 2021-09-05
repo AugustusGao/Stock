@@ -45,6 +45,9 @@
     <Reference Include="Microsoft.Playwright, Version=1.14.1.0, Culture=neutral, PublicKeyToken=db12f80f85d8ba23, processorArchitecture=MSIL">
       <HintPath>..\packages\Microsoft.Playwright.1.14.1\lib\netstandard2.0\Microsoft.Playwright.dll</HintPath>
     </Reference>
+    <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.13.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Buffers, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Buffers.4.5.1\lib\net461\System.Buffers.dll</HintPath>
@@ -89,9 +92,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Dto\Header.cs" />
     <Compile Include="Dto\LoginResult.cs" />
     <Compile Include="Http\HttpCookieHelper.cs" />
     <Compile Include="Http\HttpHelper.cs" />
+    <Compile Include="Dto\RootData.cs" />
     <Compile Include="Scanner.cs">
       <SubType>Form</SubType>
     </Compile>

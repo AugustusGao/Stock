@@ -1,0 +1,269 @@
+//沪深A股
+    hushenAStock: {
+        fields: "f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f12,f13,f14,f15,f16,f17,f18,f20,f21,f23,f24,f25,f22,f11,f62,f128,f136,f115,f152",
+        head: [
+            {
+                title: "序号",
+                type: "seq",    // type 表示特殊类型
+                show: true,
+                name: 'number'
+
+            },
+            {
+                title: "代码",
+                key: "f12",
+                order: true,
+                href: "<a href='//quote.eastmoney.com/unify/r/{{0}}.{{1}}'></a>",
+                data: ["f13","f12"],
+                show: true,
+                name: 'Code'
+            },
+            {
+                title: "名称",
+                key: "f14",
+                order: true,
+                href: "<a href='//quote.eastmoney.com/unify/r/{{0}}.{{1}}'></a>",
+                data: ["f13","f12"],
+                show: true,
+                name: 'Name'
+            },
+            {
+                title: "相关链接",
+                key: "",
+                order: false,
+                href: "<a href='//quote.eastmoney.com/unify/r/{{0}}.{{1}}'></a>",
+                data: ["f13","f12"],
+                show: true,
+                name: 'Links'
+            },
+            {
+                title: "最新价",
+                key: "f2",
+                fixedkey: 'f1',
+                newcb: function(value, fixednum){
+                    return tools.formatNumberFlag(value, fixednum);
+                },
+                color: "_f18",
+                order: true,
+                show: true,
+                name: 'Close'
+            },
+            {
+                title: "涨跌幅",
+                key: "f3",
+                fixedkey: 'f152',
+                newcb: function(value, fixednum){
+                    return tools.formatNumberIndexZdf(value, fixednum);
+                },
+                color: "f3",
+                order: true,
+                show: true,
+                name: 'ChangePercent'
+            },
+            {
+                title: "涨跌额",
+                key: "f4",
+                fixedkey: 'f1',
+                color: "f4",
+                order: true,
+                show: true,
+                name: 'Change',
+                newcb: function(value, fixednum){
+                    return tools.formatNumberFlag(value, fixednum);
+                }
+            },
+            {
+                title: "成交量(手)",
+                key: "f5",
+                order: true,
+                cb: function(that, row){
+                    return tools.formatNumber(that);
+                },
+                show: true,
+                name: 'Volume'
+            },
+            {
+                title: "成交额",
+                key: "f6",
+                order: true,
+                cb: function(that, row){
+                    return tools.formatNumber(that);
+                },
+                show: true,
+                name: 'Amount'
+            },
+            {
+                title: "振幅",
+                key: "f7",
+                order: true,
+                cb: function(that, row){
+                    return tools.formatNumber2(that);
+                },
+                show: true,
+                name: 'Amplitude'
+            },
+            {
+                title: "最高",
+                key: "f15",
+                fixedkey: 'f1',
+                color: "_f18",
+                order: true,
+                // cb: function(that, row){
+                //     return tools.formatNumber4(that);
+                // },
+                newcb: function(value, fixednum){
+                    return tools.formatNumberFlag(value, fixednum);
+                },
+                show: true,
+                name: 'Hign'
+            },
+            {
+                title: "最低",
+                key: "f16",
+                fixedkey: 'f1',
+                color: "_f18",
+                order: true,
+                newcb: function(value, fixednum){
+                    return tools.formatNumberFlag(value, fixednum);
+                },
+                show: true,
+                name: 'Low'
+            },
+            {
+                title: "今开",
+                key: "f17",
+                fixedkey: 'f1',
+                color: "_f18",
+                order: true,
+                newcb: function(value, fixednum){
+                    return tools.formatNumberFlag(value, fixednum);
+                },
+                show: true,
+                name: 'Open'
+            },
+            {
+                title: "昨收",
+                key: "f18",
+                fixedkey: 'f1',
+                order: true,
+                newcb: function(value, fixednum){
+                    return tools.formatNumberFlag(value, fixednum);
+                },
+                show: true,
+                name: 'PreviousClose'
+            },
+            {
+                title: "量比",
+                key: "f10",
+                order: true,
+                cb: function(that, row){
+                    return tools.formatNumberHSGGLB(that);
+                },
+                show: true,
+                name: 'VolumeRate'
+            },
+            {
+                title: "换手率",
+                key: "f8",
+                order: true,
+                cb: function(that, row){
+                    return tools.formatNumber2(that);
+                },
+                show: true,
+                name: 'TurnoverRate'
+            },
+            {
+                title: "市盈率(动态)",
+                key: "f9",
+                order: true,
+                show: true,
+                cb: function(that, row){
+                    return tools.formatNumberSyl(that);
+                },
+                name: 'PERation'
+            },
+            {
+                title: "市净率",
+                key: "f23",
+                order: true,
+                show: true,
+                cb: function(that, row){
+                    return tools.formatNumberSyl(that);
+                },
+                name: 'PB'
+            },
+            {
+                title: "总市值",
+                key: "f20",
+                order: true,
+                cb: function(that, row){
+                    return tools.formatNumber(that);
+                },
+                show: false
+            },
+            {
+                title: "流通市值",
+                key: "f21",
+                order: true,
+                cb: function(that, row){
+                    return tools.formatNumber(that);
+                },
+                show: false
+            },
+            {
+                title: "60日涨跌幅",
+                key: "f24",
+                order: true,
+                // suffix: "%",
+                fixedkey: 'f152',
+                newcb: function(value, fixednum){
+                    return tools.formatNumberIndexZdf(value, fixednum);
+                },
+                color: "f24",
+                show: false
+            },
+            {
+                title: "年初至今涨跌幅",
+                key: "f25",
+                // suffix: "%",
+                fixedkey: 'f152',
+                newcb: function(value, fixednum){
+                    return tools.formatNumberIndexZdf(value, fixednum);
+                },
+                color: "f25",
+                order: true,
+                show: false
+            },
+            {
+                title: "涨速",
+                key: "f22",
+                // suffix: "%",
+                color: "f22",
+                order: true,
+                fixedkey: 'f152',
+                newcb: function(value, fixednum){
+                    return tools.formatNumberIndexZdf(value, fixednum);
+                },
+                show: false
+            },
+            {
+                title: "5分钟涨跌",
+                key: "f11",
+                color: "f11",
+                order: true,
+                fixedkey: 'f152',
+                newcb: function(value, fixednum){
+                    return tools.formatNumberIndexZdf(value, fixednum);
+                },
+                show: false
+            },
+            {
+                title: "加自选",
+                key: "addzixuan",
+                order: true,
+                href: "<a href='//quote.eastmoney.com/unify/r/{{0}}.{{1}}'></a>",
+                data: ["f13","f12"],
+                show: true,
+                name: 'Links'
+            }
+        ],
