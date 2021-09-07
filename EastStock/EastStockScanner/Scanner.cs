@@ -2,25 +2,22 @@
 using log4net;
 using Microsoft.Playwright;
 using ML.NetComponent.Http;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-using System.Windows.Forms;
-using Newtonsoft;
-using Newtonsoft.Json;
-using System.Threading;
 using System.Data;
 using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace EastStockScanner
 {
     public partial class Scanner : Form
     {
         private ILog logger = LogManager.GetLogger(typeof(Scanner));
-        private string chromePath = @"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe";
+        private string chromePath = System.Environment.CurrentDirectory + @"\chromium-854489\chrome-win\chrome.exe";
         private IPlaywright playwright;
         private bool isClosed = false;
         private List<Header> hushenHeaders;
@@ -90,6 +87,13 @@ namespace EastStockScanner
         }
         private void btn_Start_Click(object sender, EventArgs e)
         {
+            var si = new StockItem("sz301056");
+            si.StartWatch();
+
+            return;
+
+
+
             Task.Factory.StartNew(async () =>
             {
                 for (var i = 1; i <= 10; i++)
