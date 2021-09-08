@@ -18,13 +18,18 @@ namespace EastStockScanner
     {
         private ILog logger = LogManager.GetLogger(typeof(Scanner));
         private string chromePath = System.Environment.CurrentDirectory + @"\chromium-854489\chrome-win\chrome.exe";
+
+        private TextBoxWriter tw;
         private IPlaywright playwright;
         private bool isClosed = false;
+        private StockItem stockItem;
         private List<Header> hushenHeaders;
         private Dictionary<string, string> headDic;
         public Scanner()
         {
             InitializeComponent();
+            tw = new TextBoxWriter(this.textBox1);
+            Console.SetOut(tw);
             Control.CheckForIllegalCrossThreadCalls = false;
             var json = File.ReadAllText(Application.StartupPath + "\\沪深A股标题.json");
             hushenHeaders = JsonConvert.DeserializeObject<List<Header>>(json);
@@ -87,8 +92,8 @@ namespace EastStockScanner
         }
         private void btn_Start_Click(object sender, EventArgs e)
         {
-            var si = new StockItem("sz301056");
-            si.StartWatch();
+            stockItem = new StockItem("sz301056");
+            stockItem.StartWatch();
 
             return;
 
@@ -232,6 +237,7 @@ namespace EastStockScanner
         {
             isClosed = true;
             playwright?.Dispose();
+            stockItem?.Stop();
         }
         private TabPage GetTabPage(int number)
         {
@@ -319,6 +325,73 @@ namespace EastStockScanner
             else result = valueExpSplit[0];
 
             return result;
+        }
+    }
+    public class TextBoxWriter : System.IO.TextWriter
+    {
+        private TextBox tbox;
+        private delegate void VoidAction();
+        private string searchKey = null;
+
+        public TextBoxWriter(TextBox box)
+        {
+            tbox = box;
+        }
+
+        public override void Write(string value)
+        {
+            VoidAction action = delegate
+            {
+                try
+                {
+                    tbox.AppendText(value);
+                }
+                catch (Exception)
+                {
+                }
+            };
+            try
+            {
+                tbox.BeginInvoke(action);
+            }
+            catch (Exception)
+            {
+
+            }
+        }
+
+        public override void WriteLine(string value)
+        {
+            VoidAction action = delegate
+            {
+                try
+                {
+                    if (!string.IsNullOrEmpty(searchKey) && !value.Contains(searchKey)) return;
+                    if (tbox.Lines.Length > 50) tbox.Clear();
+                    tbox.AppendText(value + "\r\n");
+                    //if (value.Contains("MessageBox|")) MessageBox.Show(value.Replace("MessageBox|", ""));
+                }
+                catch (Exception)
+                {
+                }
+            };
+            try
+            {
+                tbox.BeginInvoke(action);
+            }
+            catch (Exception)
+            {
+            }
+        }
+
+        public override System.Text.Encoding Encoding
+        {
+            get { return System.Text.Encoding.UTF8; }
+        }
+
+        public void SetSearchKey(string key)
+        {
+            searchKey = key;
         }
     }
 }
