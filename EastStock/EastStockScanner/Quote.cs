@@ -16,7 +16,8 @@ namespace EastStockScanner
     public class Quote
     {
         private ILog logger = LogManager.GetLogger(typeof(Quote));
-        private string chromePath = System.Environment.CurrentDirectory + @"\chromium-854489\chrome-win\chrome.exe";
+        //private string chromePath = System.Environment.CurrentDirectory + @"\chromium-854489\chrome-win\chrome.exe";
+        private string chromePath = @"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe";
         private bool isStart = false;
         private bool isLoginSuccess = false;
         private string risePercentRange;
@@ -29,7 +30,7 @@ namespace EastStockScanner
 
         public Quote()
         {
-            risePercentRange = "9.9,10.5";
+            risePercentRange = "8,10.5";
             dicStockWatching = new Dictionary<string, string>();
             headSort = new List<string>() { "代码", "名称", "相关链接", "最新价", "涨跌幅", "涨跌额", "成交量(手)", "成交额", "振幅", "最高", "最低", "今开", "昨收", "量比", "换手率", "市盈率(动态)", "市净率" };
             var json = File.ReadAllText(Application.StartupPath + "\\沪深A股标题.json");
@@ -124,6 +125,7 @@ namespace EastStockScanner
                                         if (dicStockWatching.ContainsKey(code)) continue;
                                         dicStockWatching.Add(code, code);
                                         StockWatchAction?.Invoke(d.f14, d.f13 + "." + d.f12);
+                                        //StockWatchAction = null;
                                         var info = $"Start stock watch name = {d.f14}, code = {code}, rise = {d.f3}";
                                         logger.Info(info);
                                         //Console.WriteLine(info);
