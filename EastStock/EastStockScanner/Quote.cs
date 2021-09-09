@@ -29,7 +29,7 @@ namespace EastStockScanner
 
         public Quote()
         {
-            risePercentRange = "9.95,10.05";
+            risePercentRange = "9.9,10.5";
             dicStockWatching = new Dictionary<string, string>();
             headSort = new List<string>() { "代码", "名称", "相关链接", "最新价", "涨跌幅", "涨跌额", "成交量(手)", "成交额", "振幅", "最高", "最低", "今开", "昨收", "量比", "换手率", "市盈率(动态)", "市净率" };
             var json = File.ReadAllText(Application.StartupPath + "\\沪深A股标题.json");
@@ -146,6 +146,7 @@ namespace EastStockScanner
         public void StopScanning()
         {
             isStart = false;
+            playwright?.Dispose();
         }
 
 

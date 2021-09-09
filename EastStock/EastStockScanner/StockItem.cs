@@ -1,5 +1,6 @@
 ﻿using EastStockScanner.Dto;
 using log4net;
+using ML.EGP.Sport.Common.DBWorker;
 using Newtonsoft.Json;
 using System;
 using System.IO;
@@ -44,8 +45,8 @@ namespace EastStockScanner
             {
                 var num = random.Next(1, 99);
                 sseUrl = string.Format(sseUrl, num);
-                logger.Info("Start to connect...  " + StockCode);
-                Console.WriteLine("Start to connect...  " + StockCode);
+                logger.Info("Start to connect... name = " + name + ", " + StockCode);
+                Console.WriteLine("Start to connect...  " + name + ", " + (StockCode.StartsWith("0") ? "sz" : "sh") + StockCode.Substring(2));
                 var httpClient = new HttpClient();
                 using (var streamReader = new StreamReader(await httpClient.GetStreamAsync(sseUrl)))
                 {
@@ -55,10 +56,13 @@ namespace EastStockScanner
                         {
                             var message = await streamReader.ReadLineAsync();
                             if (string.IsNullOrEmpty(message)) continue;
-                            using (StreamWriter sw = new StreamWriter(stockLogFilePath, true))
+                            DBWorkerManager.AddAnyDBOperation(DBWorkerTypeEnum.OriginDataLog, () =>
                             {
-                                await sw.WriteLineAsync(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss fff ") + message);
-                            }
+                                using (StreamWriter sw = new StreamWriter(stockLogFilePath, true))
+                                {
+                                    sw.WriteLine(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss fff ") + message);
+                                }
+                            });
 
                             var jsonStr = message.Substring(5);
                             var rootDto = JsonConvert.DeserializeObject<RootStockDto>(jsonStr);
@@ -82,8 +86,21 @@ namespace EastStockScanner
                                 double waitTotalValue = b1Count * 100 * b1HighSale;
                                 if (totalValue > 50 * 1000 * 1000 && waitTotalValue < 1 * 1000 * 1000)  //  当前挂单较少低于1亿可排挂单
                                 {
+                                    //  大单撤出4000手直接卖
+                                    if (b1CountChange < -4000)
+                                    {
+                                        if (saleStatus == SaleStatus.Buy)
+                                        {
+                                            //  todo 卖出交易
+                                            var info = $" - - - Warning Cancel Trade stock name = {name}, code = {StockCode}, waitTotalValue = {waitTotalValue}, totalValue = {totalValue}, countChange = {b1CountChange}";
+                                            logger.Info(info);
+                                            Console.WriteLine(info);
+                                        }
+                                        continue;
+                                    }
+
                                     //  买入
-                                    if (waitTotalValue > 5 * 1000 * 1000)
+                                    if (waitTotalValue > 5000 * 1000)
                                     {
                                         if (saleStatus == SaleStatus.None)
                                         {

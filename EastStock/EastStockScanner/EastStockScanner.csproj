@@ -45,6 +45,9 @@
     <Reference Include="Microsoft.Playwright, Version=1.14.1.0, Culture=neutral, PublicKeyToken=db12f80f85d8ba23, processorArchitecture=MSIL">
       <HintPath>..\packages\Microsoft.Playwright.1.14.1\lib\netstandard2.0\Microsoft.Playwright.dll</HintPath>
     </Reference>
+    <Reference Include="ML.EGP.Sport.Common.DBWorker">
+      <HintPath>..\Lib\ML.EGP.Sport.Common.DBWorker.dll</HintPath>
+    </Reference>
     <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>..\packages\Newtonsoft.Json.13.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>

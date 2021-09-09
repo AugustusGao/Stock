@@ -23,6 +23,7 @@ namespace EastStockScanner
         private StockItem stockItem;
         private List<Header> hushenHeaders;
         private Dictionary<string, string> headDic;
+        private Dictionary<string, StockItem> dicStockItems = new Dictionary<string, StockItem>();
         public Scanner()
         {
             InitializeComponent();
@@ -97,18 +98,30 @@ namespace EastStockScanner
             quote = new Quote();
             quote.StockWatchAction = (name, stockCode) =>
             {
+                if (dicStockItems.ContainsKey(stockCode)) return;
                 var si = new StockItem(name, stockCode);
                 si.StartWatch();
+                dicStockItems.Add(si.StockCode, si);
             };
             quote.StartScanning();
 
         }
         private void Scanner_FormClosed(object sender, FormClosedEventArgs e)
         {
-            isClosed = true;
-            playwright?.Dispose();
-            quote?.StopScanning();
-            stockItem?.Stop();
+            try
+            {
+                isClosed = true;
+                foreach (var item in dicStockItems.Values)
+                {
+                    item.Stop();
+                }
+                quote?.StopScanning();
+                playwright?.Dispose();
+                Environment.Exit(Environment.ExitCode);
+            }
+            catch (Exception)
+            {
+            }
         }
         private TabPage GetTabPage(int number)
         {
