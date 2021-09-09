@@ -80,13 +80,26 @@ namespace EastStockScanner
                             if (b1HighSale >= highSale)
                             {
                                 double waitTotalValue = b1Count * 100 * b1HighSale;
-                                if (totalValue > 50 * 1000 * 1000 && waitTotalValue > 5 * 1000 * 1000)
+                                if (totalValue > 50 * 1000 * 1000 && waitTotalValue < 1 * 1000 * 1000)  //  当前挂单较少低于1亿可排挂单
                                 {
-                                    if (saleStatus == SaleStatus.None)
+                                    //  买入
+                                    if (waitTotalValue > 5 * 1000 * 1000)
                                     {
-                                        saleStatus = SaleStatus.Buy;
-                                        //  todo 交易买入
-                                        var info = $"Trade stock name = {name}, code = {StockCode}, waitTotalValue = {waitTotalValue}, totalValue = {totalValue}";
+                                        if (saleStatus == SaleStatus.None)
+                                        {
+                                            saleStatus = SaleStatus.Buy;
+                                            //  todo 交易买入
+                                            var info = $" + + + Trade stock name = {name}, code = {StockCode}, waitTotalValue = {waitTotalValue}, totalValue = {totalValue}";
+                                            logger.Info(info);
+                                            Console.WriteLine(info);
+                                        }
+                                    }
+                                    //  卖出
+                                    else if (saleStatus == SaleStatus.Buy)
+                                    {
+                                        saleStatus = SaleStatus.None;
+                                        //  todo 交卖出
+                                        var info = $" - - - Warning Cancel Trade stock name = {name}, code = {StockCode}, waitTotalValue = {waitTotalValue}, totalValue = {totalValue}";
                                         logger.Info(info);
                                         Console.WriteLine(info);
                                     }
