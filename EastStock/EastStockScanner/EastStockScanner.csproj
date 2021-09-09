@@ -105,9 +105,11 @@
   <ItemGroup>
     <Compile Include="Dto\Header.cs" />
     <Compile Include="Dto\LoginResult.cs" />
+    <Compile Include="Dto\RootStockDto.cs" />
     <Compile Include="Http\HttpCookieHelper.cs" />
     <Compile Include="Http\HttpHelper.cs" />
     <Compile Include="Dto\RootData.cs" />
+    <Compile Include="Quote.cs" />
     <Compile Include="Scanner.cs">
       <SubType>Form</SubType>
     </Compile>

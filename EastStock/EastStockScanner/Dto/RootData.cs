@@ -25,37 +25,37 @@ namespace EastStockScanner.Dto
 
     public class Diff
     {
-        public int f1 { get; set; }
-        public float f2 { get; set; }
-        public float f3 { get; set; }
-        public float f4 { get; set; }
-        public int f5 { get; set; }
-        public float f6 { get; set; }
-        public float f7 { get; set; }
-        public float f8 { get; set; }
-        public float f9 { get; set; }
-        public float f10 { get; set; }
-        public float f11 { get; set; }
+        public string f1 { get; set; }
+        public string f2 { get; set; }
+        public string f3 { get; set; }
+        public string f4 { get; set; }
+        public string f5 { get; set; }
+        public string f6 { get; set; }
+        public string f7 { get; set; }
+        public string f8 { get; set; }
+        public string f9 { get; set; }
+        public string f10 { get; set; }
+        public string f11 { get; set; }
         public string f12 { get; set; }
-        public int f13 { get; set; }
+        public string f13 { get; set; }
         public string f14 { get; set; }
-        public float f15 { get; set; }
-        public float f16 { get; set; }
-        public float f17 { get; set; }
-        public float f18 { get; set; }
+        public string f15 { get; set; }
+        public string f16 { get; set; }
+        public string f17 { get; set; }
+        public string f18 { get; set; }
         public long f20 { get; set; }
         public long f21 { get; set; }
-        public float f22 { get; set; }
-        public float f23 { get; set; }
-        public float f24 { get; set; }
-        public float f25 { get; set; }
-        public float f62 { get; set; }
-        public float f115 { get; set; }
+        public string f22 { get; set; }
+        public string f23 { get; set; }
+        public string f24 { get; set; }
+        public string f25 { get; set; }
+        public string f62 { get; set; }
+        public string f115 { get; set; }
         public string f128 { get; set; }
         public string f140 { get; set; }
         public string f141 { get; set; }
         public string f136 { get; set; }
-        public int f152 { get; set; }
+        public string f152 { get; set; }
     }
 
 }

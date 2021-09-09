@@ -1,7 +1,6 @@
 ﻿using EastStockScanner.Dto;
 using log4net;
 using Microsoft.Playwright;
-using ML.NetComponent.Http;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -9,7 +8,6 @@ using System.Data;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace EastStockScanner
@@ -17,17 +15,18 @@ namespace EastStockScanner
     public partial class Scanner : Form
     {
         private ILog logger = LogManager.GetLogger(typeof(Scanner));
-        private string chromePath = System.Environment.CurrentDirectory + @"\chromium-854489\chrome-win\chrome.exe";
 
         private TextBoxWriter tw;
         private IPlaywright playwright;
         private bool isClosed = false;
+        private Quote quote;
         private StockItem stockItem;
         private List<Header> hushenHeaders;
         private Dictionary<string, string> headDic;
         public Scanner()
         {
             InitializeComponent();
+
             tw = new TextBoxWriter(this.textBox1);
             Console.SetOut(tw);
             Control.CheckForIllegalCrossThreadCalls = false;
@@ -39,6 +38,8 @@ namespace EastStockScanner
         private void Test()
         {
             var text = File.ReadAllText(Application.StartupPath + "\\1test.txt");
+            //var jsonStr = text.Substring(5);
+            //var ss = JsonConvert.DeserializeObject<RootStockDto>(jsonStr);
             var startIndex = text.IndexOf("({");
             var data = text.Substring(startIndex + 1, text.Length - startIndex - 3);
             var rootData = JsonConvert.DeserializeObject<RootData>(data);
@@ -92,96 +93,40 @@ namespace EastStockScanner
         }
         private void btn_Start_Click(object sender, EventArgs e)
         {
-            stockItem = new StockItem("sz301056");
-            stockItem.StartWatch();
-
-            return;
-
-
-
-            Task.Factory.StartNew(async () =>
+            Console.WriteLine("Start Scan Quote...");
+            quote = new Quote();
+            quote.StockWatchAction = (name, stockCode) =>
             {
-                for (var i = 1; i <= 10; i++)
-                {
-                    var tabPage = GetTabPage(i);
-                    CreateDataGrid(tabPage);
-                }
+                var si = new StockItem(name, stockCode);
+                si.StartWatch();
+            };
+            quote.StartScanning();
 
-                var res = await Login();
-                var urlBase = res.FirstUrl.Substring(0, res.FirstUrl.Length - 13).Replace("pn=2", "pn={0}");
-                //do
-                //{
-                var http = new HttpHelper();
-                for (var i = 1; i <= 10; i++)
-                {
-                    try
-                    {
-                        var time = ToUnixTimeSpan(DateTime.Now);
-                        var url = string.Format(urlBase, i) + time;
-                        var item = new HttpItem();
-                        item.URL = url;
-                        item.Cookie = res.Cookie.TrimEnd(',');
-
-                        var result = await http.GetHtmlAsync(item);
-                        if (result.StatusCode != System.Net.HttpStatusCode.OK) return;
-                        await Task.Factory.StartNew(() =>
-                        {
-                            try
-                            {
-                                var startIndex = result.Html.IndexOf("({");
-                                var data = result.Html.Substring(startIndex + 1, result.Html.Length - startIndex - 3);
-                                var rootData = JsonConvert.DeserializeObject<RootData>(data);
-                                var notKeys = new List<string>();
-                                var table = new DataTable();
-                                for (var j = 0; j < 20; j++)
-                                {
-                                    var d = rootData.data.diff[j];
-                                    var dic = GetProperties(d);
-
-                                    if (j == 0)
-                                    {
-                                        var headSort = new List<string>() { "代码", "名称", "相关链接", "最新价", "涨跌幅", "涨跌额", "成交量(手)", "成交额", "振幅", "最高", "最低", "今开", "昨收", "量比", "换手率", "市盈率(动态)", "市净率" };
-                                        var headFull = new List<string>();
-                                        foreach (var key in dic.Keys)
-                                        {
-                                            if (!headDic.Keys.Contains(key) || string.IsNullOrEmpty(headDic[key]))
-                                            {
-                                                notKeys.Add(key);
-                                                continue;
-                                            }
-                                            headFull.Add(headDic[key]);
-                                        }
-                                        var ext = headFull.Except(headSort);
-                                        headSort.AddRange(ext);
-                                        headSort.ForEach(k => table.Columns.Add(k));
-                                    }
-                                    var row = table.NewRow();
-                                    foreach (var kv in dic)
-                                    {
-                                        if (notKeys.Contains(kv.Key)) continue;
-                                        row[headDic[kv.Key]] = kv.Value;
-                                    }
-                                    table.Rows.Add(row);
-                                }
-
-                                var tabPage = GetTabPage(i);
-                                DataGridView dataGrid = (DataGridView)tabPage.Controls[0];
-                                dataGrid.DataSource = table;
-                            }
-                            catch (Exception exx)
-                            {
-                                logger.Error("Process Page No = " + i, exx);
-                            }
-                        });
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.Error("Page No = " + i, ex);
-                    }
-                }
-                //    await Task.Delay(5000 * 12);
-                //} while (!isClosed);
-            });
+        }
+        private void Scanner_FormClosed(object sender, FormClosedEventArgs e)
+        {
+            isClosed = true;
+            playwright?.Dispose();
+            quote?.StopScanning();
+            stockItem?.Stop();
+        }
+        private TabPage GetTabPage(int number)
+        {
+            return null;
+            //switch (number)
+            //{
+            //    case 1: return tabPage1;
+            //    case 2: return tabPage2;
+            //    case 3: return tabPage3;
+            //    case 4: return tabPage4;
+            //    case 5: return tabPage5;
+            //    case 6: return tabPage6;
+            //    case 7: return tabPage7;
+            //    case 8: return tabPage8;
+            //    case 9: return tabPage9;
+            //    case 10: return tabPage10;
+            //    default: return null;
+            //}
         }
         private DataGridView CreateDataGrid(TabPage tabPage)
         {
@@ -195,66 +140,6 @@ namespace EastStockScanner
             dataGrid.Dock = DockStyle.Fill;
             tabPage.Controls.Add(dataGrid);
             return dataGrid;
-        }
-        private async Task<LoginResult> Login()
-        {
-            try
-            {
-                playwright = await Playwright.CreateAsync();
-                var chrome = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
-                { Headless = false, ExecutablePath = chromePath });
-                var context = await chrome.NewContextAsync(new BrowserNewContextOptions()
-                { UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36" });
-                var page = await context.NewPageAsync();
-
-                //  访问行情中心沪深A股
-                var url = "http://quote.eastmoney.com/center/gridlist.html#hs_a_board";
-                await page.GotoAsync(url);
-                //  调整知道页面
-                var index = 2;
-                await page.EvaluateAsync($"()=>document.getElementsByClassName('paginate_input')[0].value={index}");
-                await page.EvaluateAsync("()=>document.getElementsByClassName('paginte_go')[0].click()");
-                var response = await page.WaitForResponseAsync(r => r.Url.Contains("push2.eastmoney.com/api/qt/clist/get"));
-                //var localUrl = Regex.Split(response.Url, "api")[0];
-                //var text = await response.TextAsync();
-                var networkCookies = await page.Context.CookiesAsync(new[] { "http://quote.eastmoney.com" });
-                string cookieStr = networkCookies.Aggregate("", (current, ck) => current + (ck.Name + "=" + ck.Value + ","));
-
-                return new LoginResult() { Cookie = cookieStr, FirstUrl = response.Url, Page = page };
-            }
-            catch (Exception e)
-            {
-                logger.Error(e.ToString());
-            }
-            return null;
-        }
-        private static long ToUnixTimeSpan(DateTime date)
-        {
-            var startTime = TimeZone.CurrentTimeZone.ToLocalTime(new DateTime(1970, 1, 1)); // 当地时区
-            return (long)(date - startTime).TotalMilliseconds; // 相差毫秒数
-        }
-        private void Scanner_FormClosed(object sender, FormClosedEventArgs e)
-        {
-            isClosed = true;
-            playwright?.Dispose();
-            stockItem?.Stop();
-        }
-        private TabPage GetTabPage(int number)
-        {
-            switch (number)
-            {
-                case 1: return tabPage1;
-                case 2: return tabPage2;
-                case 3: return tabPage3;
-                case 4: return tabPage4;
-                case 5: return tabPage5;
-                case 6: return tabPage6;
-                case 7: return tabPage7;
-                case 8: return tabPage8;
-                case 9: return tabPage9;
-                case 10: return tabPage10;
-                default: return null;
-            }
         }
         public static Dictionary<string, string> GetProperties<T>(T t)
         {
@@ -284,6 +169,7 @@ namespace EastStockScanner
 
             return ret;
         }
+
         public static string DoubleToFullString(double value, NumberFormatInfo formatInfo)
         {
             string[] valueExpSplit;
@@ -291,8 +177,8 @@ namespace EastStockScanner
             int indexOfDecimalSeparator, exp;
 
             valueExpSplit = value.ToString("r", formatInfo)
-                                 .ToUpper()
-                                 .Split(new char[] { 'E' });
+                .ToUpper()
+                .Split(new char[] { 'E' });
 
             if (valueExpSplit.Length > 1)
             {
@@ -301,7 +187,7 @@ namespace EastStockScanner
                 decimalSeparator = formatInfo.NumberDecimalSeparator;
 
                 if ((indexOfDecimalSeparator
-                     = valueExpSplit[0].IndexOf(decimalSeparator)) > -1)
+                        = valueExpSplit[0].IndexOf(decimalSeparator)) > -1)
                 {
                     exp -= (result.Length - indexOfDecimalSeparator - 1);
                     result = result.Replace(decimalSeparator, "");
@@ -314,7 +200,7 @@ namespace EastStockScanner
                     if (exp >= result.Length)
                     {
                         result = "0." + new string('0', exp - result.Length)
-                                     + result;
+                                      + result;
                     }
                     else
                     {
