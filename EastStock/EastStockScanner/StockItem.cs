@@ -24,6 +24,7 @@ namespace EastStockScanner
         private double tradeInValueCheck;
         private double bigTradeOutValueCheck;
         private int b1Count;
+        private DateTime becomeHighSaleTime = DateTime.MaxValue;
         private SaleStatus saleStatus;
         public string StockCode;
         public StockItem(string n, string stockCode)
@@ -71,38 +72,48 @@ namespace EastStockScanner
                             {
                                 totalValue = t;
                                 //  市值低于10亿的不考虑
-                                if (totalValue < 10 * 1000 * 1000)
+                                if (totalValue < 10 * 10000 * 10000)
                                 {
                                     logger.Info($"Cancel watch totalValue too lower ,name = {name}, code = {StockCode}, b1FirstSale = {b1FirstSale}");
                                     Stop();
                                     continue;
                                 }
-
-                                tradeInValueCheck = totalValue * 0.01;              //  1%且不能超过1亿，超过1亿强制设定为1亿
-                                if (tradeInValueCheck > 1 * 1000 * 1000) tradeInValueCheck = 1 * 1000 * 1000;
+                                //  1%且不能超过1亿，超过1亿强制设定为1亿
+                                //tradeInValueCheck = totalValue * 0.01;
+                                //  总市值  <50亿:5000万， >50亿且<100亿:8000万，>100亿:1亿
+                                if (totalValue < 50.0 * 10000 * 10000) tradeInValueCheck = 5000 * 10000;
+                                else if (totalValue < 100.0 * 10000 * 10000) tradeInValueCheck = 8000 * 10000;
+                                else tradeInValueCheck = 1 * 10000 * 10000;
                                 bigTradeOutValueCheck = tradeInValueCheck * 0.05;   //  5%
                             }
                             if (float.TryParse(rootDto.data.f51, out float highestSale) && highestSale > 0) highSale = highestSale;
                             if (float.TryParse(rootDto.data.f19, out float b1Sale) && b1Sale > 0)
                             {
-                                if (b1FirstSale == null) b1FirstSale = b1Sale;
                                 //  拿到数据就已经是涨停价的，不再监测挂单买入
-                                if (highSale == b1FirstSale.Value)
+                                if (Math.Abs(highSale - (b1FirstSale ?? b1Sale)) < 0.0001)
                                 {
-                                    logger.Info($"Cancel watch highSale = b1FirstSale ,name = {name}, code = {StockCode}, b1FirstSale = {b1FirstSale}");
+                                    logger.Debug($"Cancel watch highSale = b1FirstSale ,name = {name}, code = {StockCode}, b1FirstSale = {b1FirstSale ?? b1Sale}");
                                     Stop();
                                     continue;
                                 }
-                                else
+                                else if (b1FirstSale == null)
                                 {
+                                    b1FirstSale = b1Sale;
                                     logger.Info("Start to watching name = " + name + ", " + StockCode);
                                     Console.WriteLine("Start to watching  " + name + ", " + (StockCode.StartsWith("0") ? "sz" : "sh") + StockCode.Substring(2));
                                 }
                                 b1HighSale = b1Sale;
+
+                                //  刚跳涨停，记录时间点，2分钟内不检查大单
+                                if (b1HighSale >= highSale)
+                                {
+                                    becomeHighSaleTime = DateTime.Now;
+                                    logger.Info($"name = {name}, code = {StockCode}, b1FirstSale = {b1FirstSale}, b1HighSale = {b1HighSale}, becomeHighSaleTime = " + becomeHighSaleTime);
+                                }
                             }
                             if (int.TryParse(rootDto.data.f20, out int b) && b > 0) b1Count = b;
                             if (!int.TryParse(rootDto.data.f211, out int b1CountChange)) continue;
-                            b1Count += b1CountChange;
+                            if (b <= 0) b1Count += b1CountChange;   //  b1Count已经有值了，不再进行变化加减
                             if (b1Sale <= 0 && b < 0 && b1CountChange <= 0) continue;
 
                             var debug = $"name = {name}, total = {totalValue}, rise highest sale = {highSale}, buy 1 sale = {b1HighSale}, count = {b1Count}, change count = {b1CountChange}";
@@ -113,26 +124,45 @@ namespace EastStockScanner
                             //  不再使用判断：总市值超过50亿，并且挂单总额超过5000万可以买入
                             //  按照总市值的 1% 来计算挂单买入条件
                             //  再按照买入条件的 5% 来计算大单条件撤单
-                            if (b1HighSale >= highSale)
+                            double waitTotalValue = b1Count * 100 * b1HighSale;
+                            if (saleStatus == SaleStatus.Buy)
                             {
-                                double waitTotalValue = b1Count * 100 * b1HighSale;
                                 //  再按照买入条件的 5% 来计算大单条件撤单, 大单撤单b1CountChange是负数
-                                if (b1CountChange < 0 && (Math.Abs(b1CountChange) * 100 * b1HighSale > bigTradeOutValueCheck))
+                                //  重新按照大单卖出占比挂单总额的 20% 判断撤单
+                                if (b1CountChange < 0 && (DateTime.Now - becomeHighSaleTime).TotalSeconds >= 2 * 60)
                                 {
-                                    if (saleStatus == SaleStatus.Buy)
+                                    var bigChangeValue = Math.Abs(b1CountChange) * 100 * b1HighSale;
+                                    var percent = bigChangeValue / (bigChangeValue + waitTotalValue);
+                                    if (percent > 0.2)    //  超过20%
                                     {
+                                        saleStatus = SaleStatus.Sale;
                                         //  todo 卖出交易
-                                        var info = $" - - - Warning Cancel Trade stock name = {name}, code = {StockCode}, waitTotalValue = {waitTotalValue}, bigTradeOutValueCheck = {bigTradeOutValueCheck}, totalValue = {totalValue}, countChange = {b1CountChange}";
+                                        var info = $" - - - Warning Cancel Trade stock name = {name}, code = {StockCode}, waitTotalValue = {waitTotalValue}, bigChangeValue = {bigChangeValue}, percent = {percent}, totalValue = {totalValue}, countChange = {b1CountChange}";
                                         logger.Info(info);
                                         Console.WriteLine(info);
+                                        continue;
                                     }
-                                    continue;
                                 }
 
+
+                                //  低于设定挂单总额卖出
+                                if (waitTotalValue < tradeInValueCheck)
+                                {
+                                    saleStatus = SaleStatus.Sale;
+                                    //  todo 交卖出
+                                    var info = $" - - - Warning Cancel Trade stock name = {name}, code = {StockCode}, waitTotalValue = {waitTotalValue}, totalValue = {totalValue}";
+                                    logger.Info(info);
+                                    Console.WriteLine(info);
+                                }
+                            }
+
+                            //  达到涨停价的才考虑买入
+                            if (b1HighSale >= highSale)
+                            {
                                 //  买入
                                 if (waitTotalValue > tradeInValueCheck)
                                 {
-                                    if (saleStatus == SaleStatus.None)
+                                    if (saleStatus == SaleStatus.None || saleStatus == SaleStatus.Sale)
                                     {
                                         saleStatus = SaleStatus.Buy;
                                         //  todo 交易买入
@@ -140,15 +170,6 @@ namespace EastStockScanner
                                         logger.Info(info);
                                         Console.WriteLine(info);
                                     }
-                                }
-                                //  卖出
-                                else if (saleStatus == SaleStatus.Buy)
-                                {
-                                    saleStatus = SaleStatus.None;
-                                    //  todo 交卖出
-                                    var info = $" - - - Warning Cancel Trade stock name = {name}, code = {StockCode}, waitTotalValue = {waitTotalValue}, totalValue = {totalValue}";
-                                    logger.Info(info);
-                                    Console.WriteLine(info);
                                 }
                             }
                         }
@@ -159,7 +180,7 @@ namespace EastStockScanner
                         }
                     }
                 }
-                logger.Info($"End name = {name}, code = {StockCode}");
+                logger.Debug($"End name = {name}, code = {StockCode}");
             });
         }
     }

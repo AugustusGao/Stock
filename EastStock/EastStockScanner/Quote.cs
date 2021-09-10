@@ -127,7 +127,7 @@ namespace EastStockScanner
                                         StockWatchAction?.Invoke(d.f14, d.f13 + "." + d.f12);
                                         //StockWatchAction = null;
                                         var info = $"Start stock watch name = {d.f14}, code = {code}, rise = {d.f3}";
-                                        logger.Info(info);
+                                        logger.Debug(info);
                                         //Console.WriteLine(info);
                                     }
                                 }
