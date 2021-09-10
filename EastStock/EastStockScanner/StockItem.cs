@@ -125,13 +125,13 @@ namespace EastStockScanner
                             //  按照总市值的 1% 来计算挂单买入条件
                             //  再按照买入条件的 5% 来计算大单条件撤单
                             double waitTotalValue = b1Count * 100 * b1HighSale;
-                            if (saleStatus == SaleStatus.Buy)
+                            if (saleStatus == SaleStatus.Buy && b1CountChange < 0)
                             {
+                                double bigChangeValue = Math.Abs(b1CountChange) * 100 * b1HighSale;
                                 //  再按照买入条件的 5% 来计算大单条件撤单, 大单撤单b1CountChange是负数
                                 //  重新按照大单卖出占比挂单总额的 20% 判断撤单
-                                if (b1CountChange < 0 && (DateTime.Now - becomeHighSaleTime).TotalSeconds >= 2 * 60)
+                                if ((DateTime.Now - becomeHighSaleTime).TotalSeconds >= 2 * 60)
                                 {
-                                    var bigChangeValue = Math.Abs(b1CountChange) * 100 * b1HighSale;
                                     var percent = bigChangeValue / (bigChangeValue + waitTotalValue);
                                     if (percent > 0.2)    //  超过20%
                                     {
@@ -144,13 +144,13 @@ namespace EastStockScanner
                                     }
                                 }
 
-
-                                //  低于设定挂单总额卖出
-                                if (waitTotalValue < tradeInValueCheck)
+                                //  低于设定挂单总额的 70% 卖出
+                                var percentWait = waitTotalValue / (bigChangeValue + waitTotalValue);
+                                if (percentWait < 0.7)
                                 {
                                     saleStatus = SaleStatus.Sale;
                                     //  todo 交卖出
-                                    var info = $" - - - Warning Cancel Trade stock name = {name}, code = {StockCode}, waitTotalValue = {waitTotalValue}, totalValue = {totalValue}";
+                                    var info = $" - - - Warning Cancel Trade stock name = {name}, code = {StockCode}, waitTotalValue = {waitTotalValue}, bigChangeValue = {bigChangeValue}, percent = {percentWait}, totalValue = {totalValue}";
                                     logger.Info(info);
                                     Console.WriteLine(info);
                                 }
