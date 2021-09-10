@@ -84,7 +84,8 @@ namespace EastStockScanner
                                 if (totalValue < 50.0 * 10000 * 10000) tradeInValueCheck = 5000 * 10000;
                                 else if (totalValue < 100.0 * 10000 * 10000) tradeInValueCheck = 8000 * 10000;
                                 else tradeInValueCheck = 1 * 10000 * 10000;
-                                bigTradeOutValueCheck = tradeInValueCheck * 0.05;   //  5%
+                                tradeInValueCheck /= 2.0;
+                                //bigTradeOutValueCheck = tradeInValueCheck * 0.05;   //  5%
                             }
                             if (float.TryParse(rootDto.data.f51, out float highestSale) && highestSale > 0) highSale = highestSale;
                             if (float.TryParse(rootDto.data.f19, out float b1Sale) && b1Sale > 0)
