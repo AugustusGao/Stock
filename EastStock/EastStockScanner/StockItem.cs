@@ -3,7 +3,7 @@ using log4net;
 using ML.EGP.Sport.Common.DBWorker;
 using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -14,6 +14,7 @@ namespace EastStockScanner
     public class StockItem
     {
         private ILog logger = LogManager.GetLogger(typeof(StockItem));
+        private static ConcurrentDictionary<int, string> existServerNumber = new ConcurrentDictionary<int, string>();
         private string stockLogFilePath;
         private Random random = new Random();
         private string sseUrl;
@@ -30,6 +31,7 @@ namespace EastStockScanner
         private int b1Count;
         private DateTime becomeHighSaleTime = DateTime.MaxValue;
         private SaleStatus saleStatus;
+        private int serverNumber;
         public string StockCode;
         public StockItem(string n, string stockCode)
         {
@@ -45,13 +47,22 @@ namespace EastStockScanner
         public void Stop()
         {
             isClosed = true;
+            existServerNumber.TryRemove(serverNumber, out string s);
         }
         public void StartWatch()
         {
             Task.Factory.StartNew(async () =>
             {
-                var num = random.Next(1, 99);
-                sseUrl = string.Format(sseUrl, num);
+                serverNumber = 0;
+                do
+                {
+                    serverNumber = random.Next(1, 99);
+                    if (!existServerNumber.TryAdd(serverNumber, StockCode))
+                        serverNumber = 0;
+
+                } while (serverNumber == 0);
+
+                sseUrl = string.Format(sseUrl, serverNumber);
                 var httpClient = new HttpClient();
                 using (var streamReader = new StreamReader(await httpClient.GetStreamAsync(sseUrl)))
                 {
@@ -75,10 +86,10 @@ namespace EastStockScanner
                             if (double.TryParse(rootDto.data.f116, out double t) && t > 0)
                             {
                                 totalValue = t;
-                                //  市值低于10亿的不考虑
-                                if (totalValue < 10 * 10000 * 10000)
+                                //  市值低于10亿,高于1000亿的不考虑
+                                if (totalValue < 10 * 10000 * 10000 || totalValue > 1000.0 * 10000 * 10000)
                                 {
-                                    logger.Info($"Cancel watch totalValue too lower ,name = {name}, code = {StockCode}, b1FirstSale = {b1FirstSale}");
+                                    logger.Info($"Cancel watch totalValue too lower or higher ,name = {name}, code = {StockCode}, b1FirstSale = {b1FirstSale}");
                                     Stop();
                                     continue;
                                 }
@@ -155,7 +166,7 @@ namespace EastStockScanner
                                     {
                                         saleStatus = SaleStatus.Sale;
                                         //  todo 卖出交易
-                                        var info = $" - - - Warning Cancel Trade stock name = {name}, code = {StockCode}, waitTotalValue = {waitTotalValue}, bigChangeValue = {bigChangeValue}, percent = {percent}, totalValue = {totalValue}, countChange = {b1CountChange}";
+                                        var info = $" - - - Warning Cancel Trade stock name = {name}, code = {StockCode}, waitTotalValue = {waitTotalValue}, bigChangeValue = {bigChangeValue}, sumB1CountChange = {sumB1CountChange}, percent = {percent}, totalValue = {totalValue}, countChange = {b1CountChange}";
                                         logger.Info(info);
                                         Console.WriteLine(info);
                                         continue;
