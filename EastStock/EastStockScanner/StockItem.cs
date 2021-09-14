@@ -169,6 +169,15 @@ namespace EastStockScanner
                                         var info = $" - - - Warning Cancel Trade stock name = {name}, code = {StockCode}, waitTotalValue = {waitTotalValue}, bigChangeValue = {bigChangeValue}, sumB1CountChange = {sumB1CountChange}, percent = {percent}, totalValue = {totalValue}, countChange = {b1CountChange}";
                                         logger.Info(info);
                                         Console.WriteLine(info);
+
+                                        if (waitTotalValue > tradeInValueCheck)
+                                        {
+                                            saleStatus = SaleStatus.Buy;
+                                            info = $" + + + Again Trade stock name = {name}, code = {StockCode}, waitTotalValue = {waitTotalValue}, tradeInValueCheck = {tradeInValueCheck}, totalValue = {totalValue}";
+                                            logger.Info(info);
+                                            Console.WriteLine(info);
+                                        }
+
                                         continue;
                                     }
                                 }
