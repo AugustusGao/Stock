@@ -8,6 +8,7 @@ using System.Data;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace EastStockScanner
@@ -24,13 +25,25 @@ namespace EastStockScanner
         private List<Header> hushenHeaders;
         private Dictionary<string, string> headDic;
         private Dictionary<string, StockItem> dicStockItems = new Dictionary<string, StockItem>();
+        private DateTime openTimeAM;
+        private DateTime closeTimeAM;
+        private DateTime openTimePM;
+        private DateTime closeTimePM;
         public Scanner()
         {
             InitializeComponent();
 
-            tw = new TextBoxWriter(this.textBox1);
+            tw = new TextBoxWriter(textBox1, textBox2);
             Console.SetOut(tw);
             Control.CheckForIllegalCrossThreadCalls = false;
+
+            //  开闭市时间
+            var now = DateTime.Now;
+            openTimeAM = new DateTime(now.Year, now.Month, now.Day, 9, 30, 0);
+            closeTimeAM = new DateTime(now.Year, now.Month, now.Day, 11, 30, 0);
+            openTimePM = new DateTime(now.Year, now.Month, now.Day, 13, 0, 0);
+            closeTimePM = new DateTime(now.Year, now.Month, now.Day, 15, 0, 0);
+
             var json = File.ReadAllText(Application.StartupPath + "\\沪深A股标题.json");
             hushenHeaders = JsonConvert.DeserializeObject<List<Header>>(json);
             headDic = hushenHeaders.Where(o => !string.IsNullOrEmpty(o.key)).ToDictionary(o => o.key, o => o.title);
@@ -94,7 +107,6 @@ namespace EastStockScanner
         }
         private void btn_Start_Click(object sender, EventArgs e)
         {
-            Console.WriteLine("Start Scan Quote...");
             quote = new Quote();
             quote.StockWatchAction = (name, stockCode) =>
             {
@@ -105,6 +117,34 @@ namespace EastStockScanner
             };
             quote.StartScanning();
 
+            //  定时检查每个股票数据是否一直更新
+            var checkSeconds = 10;
+            Task.Factory.StartNew(async () =>
+           {
+               do
+               {
+                   var now = DateTime.Now;
+                   if (now > openTimeAM && now < closeTimeAM || now > openTimePM && now < closeTimePM)
+                   {
+                       checkSeconds = 4;
+                   }
+                   else
+                   {
+                       checkSeconds = 10;
+                   }
+
+                   foreach (var value in dicStockItems.Values)
+                   {
+                       if ((DateTime.Now - value.UpdateTime).TotalSeconds > checkSeconds)
+                       {
+                           value.Stop();
+                           value.StartWatch(true);
+                       }
+                   }
+
+                   await Task.Delay(200);
+               } while (!isClosed);
+           });
         }
         private void Scanner_FormClosed(object sender, FormClosedEventArgs e)
         {
@@ -228,13 +268,15 @@ namespace EastStockScanner
     }
     public class TextBoxWriter : System.IO.TextWriter
     {
-        private TextBox tbox;
+        private TextBox tbox1;
+        private TextBox tbox2;
         private delegate void VoidAction();
         private string searchKey = null;
 
-        public TextBoxWriter(TextBox box)
+        public TextBoxWriter(TextBox box1, TextBox box2)
         {
-            tbox = box;
+            tbox1 = box1;
+            tbox2 = box2;
         }
 
         public override void Write(string value)
@@ -243,7 +285,7 @@ namespace EastStockScanner
             {
                 try
                 {
-                    tbox.AppendText(value);
+                    tbox1.AppendText(value);
                 }
                 catch (Exception)
                 {
@@ -251,7 +293,7 @@ namespace EastStockScanner
             };
             try
             {
-                tbox.BeginInvoke(action);
+                tbox1.BeginInvoke(action);
             }
             catch (Exception)
             {
@@ -261,22 +303,38 @@ namespace EastStockScanner
 
         public override void WriteLine(string value)
         {
-            VoidAction action = delegate
-            {
-                try
-                {
-                    if (!string.IsNullOrEmpty(searchKey) && !value.Contains(searchKey)) return;
-                    if (tbox.Lines.Length > 50) tbox.Clear();
-                    tbox.AppendText(value + "\r\n");
-                    //if (value.Contains("MessageBox|")) MessageBox.Show(value.Replace("MessageBox|", ""));
-                }
-                catch (Exception)
-                {
-                }
-            };
             try
             {
-                tbox.BeginInvoke(action);
+                if (value.Contains("msg|"))
+                {
+                    VoidAction actionBox2 = delegate
+                    {
+                        try
+                        {
+                            if (value.Contains("msg|")) tbox2.AppendText(value.Substring(4) + "\r\n");
+                        }
+                        catch (Exception)
+                        {
+                        }
+                    };
+                    tbox2.BeginInvoke(actionBox2);
+                }
+                else
+                {
+                    VoidAction actionBox1 = delegate
+                    {
+                        try
+                        {
+                            if (!string.IsNullOrEmpty(searchKey) && !value.Contains(searchKey)) return;
+                            if (tbox1.Lines.Length > 50) tbox1.Clear();
+                            tbox1.AppendText(value + "\r\n");
+                        }
+                        catch (Exception)
+                        {
+                        }
+                    };
+                    tbox1.BeginInvoke(actionBox1);
+                }
             }
             catch (Exception)
             {

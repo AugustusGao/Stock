@@ -33,6 +33,7 @@ namespace EastStockScanner
         private SaleStatus saleStatus;
         private int serverNumber;
         public string StockCode;
+        public DateTime UpdateTime = DateTime.MaxValue;
         public StockItem(string n, string stockCode)
         {
             name = n;
@@ -47,12 +48,20 @@ namespace EastStockScanner
         public void Stop()
         {
             isClosed = true;
+            UpdateTime = DateTime.MaxValue;
             existServerNumber.TryRemove(serverNumber, out string s);
         }
-        public void StartWatch()
+        public void StartWatch(bool isRestart = false)
         {
             Task.Factory.StartNew(async () =>
             {
+                if (isRestart)
+                {
+                    await Task.Delay(200);
+                    isClosed = false;
+                    logger.Info("ReStart to watching name = " + name + ", " + StockCode);
+                    Console.WriteLine("ReStart to watching  " + name + ", " + (StockCode.StartsWith("0") ? "sz" : "sh") + StockCode.Substring(2));
+                }
                 serverNumber = 0;
                 do
                 {
@@ -64,6 +73,7 @@ namespace EastStockScanner
 
                 sseUrl = string.Format(sseUrl, serverNumber);
                 var httpClient = new HttpClient();
+                UpdateTime = DateTime.Now;
                 using (var streamReader = new StreamReader(await httpClient.GetStreamAsync(sseUrl)))
                 {
                     while (!isClosed && !streamReader.EndOfStream)
@@ -72,6 +82,8 @@ namespace EastStockScanner
                         {
                             var message = await streamReader.ReadLineAsync();
                             if (string.IsNullOrEmpty(message)) continue;
+                            UpdateTime = DateTime.Now;
+
                             DBWorkerManager.AddAnyDBOperation(DBWorkerTypeEnum.OriginDataLog, () =>
                             {
                                 using (StreamWriter sw = new StreamWriter(stockLogFilePath, true))
@@ -113,7 +125,7 @@ namespace EastStockScanner
                                     continue;
                                 }
                                 //  拿到数据就已经是涨停价的，不再监测挂单买入
-                                if (Math.Abs(highSale - (b1FirstSale ?? b1Sale)) < 0.0001)
+                                if (!isRestart && Math.Abs(highSale - (b1FirstSale ?? b1Sale)) < 0.0001)
                                 {
                                     logger.Debug($"Cancel watch highSale = b1FirstSale ,name = {name}, code = {StockCode}, b1FirstSale = {b1FirstSale ?? b1Sale}");
                                     Stop();
@@ -168,6 +180,7 @@ namespace EastStockScanner
                                         //  todo 卖出交易
                                         var info = $" - - - Warning Cancel Trade stock name = {name}, code = {StockCode}, waitTotalValue = {waitTotalValue}, bigChangeValue = {bigChangeValue}, sumB1CountChange = {sumB1CountChange}, percent = {percent}, totalValue = {totalValue}, countChange = {b1CountChange}";
                                         logger.Info(info);
+                                        Console.WriteLine($"msg|Cancel Trade:{name} {StockCode}");
                                         Console.WriteLine(info);
 
                                         if (waitTotalValue > tradeInValueCheck)
@@ -175,6 +188,7 @@ namespace EastStockScanner
                                             saleStatus = SaleStatus.Buy;
                                             info = $" + + + Again Trade stock name = {name}, code = {StockCode}, waitTotalValue = {waitTotalValue}, tradeInValueCheck = {tradeInValueCheck}, totalValue = {totalValue}";
                                             logger.Info(info);
+                                            Console.WriteLine($"msg|Again Trade:{name} {StockCode}");
                                             Console.WriteLine(info);
                                         }
 
@@ -191,6 +205,7 @@ namespace EastStockScanner
                                     //  todo 交卖出
                                     var info = $" - - - Warning Cancel Trade stock name = {name}, code = {StockCode}, waitTotalValue = {waitTotalValue}, tradeInValueCheck = {tradeInValueCheck}, totalValue = {totalValue}";
                                     logger.Info(info);
+                                    Console.WriteLine($"msg|Cancel Trade:{name} {StockCode}");
                                     Console.WriteLine(info);
                                 }
                             }
@@ -207,6 +222,7 @@ namespace EastStockScanner
                                         //  todo 交易买入
                                         var info = $" + + + Trade stock name = {name}, code = {StockCode}, waitTotalValue = {waitTotalValue}, tradeInValueCheck = {tradeInValueCheck}, totalValue = {totalValue}";
                                         logger.Info(info);
+                                        Console.WriteLine($"msg|Trade:{name} {StockCode}");
                                         Console.WriteLine(info);
                                     }
                                 }
